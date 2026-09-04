@@ -2,7 +2,7 @@
 
 ## Overview
 
-This folder contains paired original and synthetic financial statements for evaluating accounting-violation detection, rule identification, error localization, and explanation generation.
+This folder contains synthetic financial statements for evaluating accounting-violation detection, rule identification, error localization, and explanation generation. The full dataset additionally preserves the corresponding original statements for auditing and transformation analysis.
 
 Each synthetic statement contains one intentionally introduced accounting, classification, presentation, or reconciliation error. These synthetic errors are created only for research and are not claims about the reporting quality of the represented companies.
 
@@ -11,6 +11,9 @@ Each synthetic statement contains one intentionally introduced accounting, class
 - **Companies:** 102
 - **Synthetic rules:** 50
 - **Original–synthetic pairs:** 5,100
+- **Model-ready examples:** 10,200
+- **`VIOLATION` examples:** 5,100
+- **`NO_VIOLATION` examples:** 5,100
 - **Pairs per company:** 50
 - **Pairs per rule:** 102
 - **Economic sectors:** 11
@@ -32,21 +35,23 @@ The recommended dataset is compressed JSON Lines. It contains one JSON object pe
 
 | Field | Description |
 |---|---|
-| `id` | Unique company–case identifier |
-| `input` | Original and synthetic financial statements presented to the model |
-| `label` | Rule and ground-truth description of the introduced violation |
+| `id` | Unique example identifier, including its original/synthetic variant |
+| `input` | One financial statement presented to the model |
+| `label` | Binary label and, for violations, rule-level ground truth |
 | `metadata` | Minimal grouping information for evaluation |
 
 Example structure:
 
 ```json
 {
-  "id": "AAPL_BS-001",
+  "id": "AAPL_BS-001::synthetic",
   "input": {
-    "original_statement": {},
-    "synthetic_statement": {}
+    "title_rows": [],
+    "columns": [],
+    "rows": []
   },
   "label": {
+    "classification": "VIOLATION",
     "rule_id": "BS-04",
     "violation": "PP&E classified as a current asset",
     "synthetic_transformation": "Move PP&E from non-current assets into current assets.",
@@ -54,6 +59,8 @@ Example structure:
     "affected_line_items": ["Property, plant and equipment, net"]
   },
   "metadata": {
+    "pair_id": "AAPL_BS-001",
+    "variant": "synthetic",
     "ticker": "AAPL",
     "statement_type": "Balance Sheet",
     "sector": "Information Technology"
@@ -63,16 +70,46 @@ Example structure:
 
 Statement rows retain only their line item, section, section-header indicator, and reported values. Internal source-row numbers, highlights, change flags, filing metadata, and quality-control fields are excluded. Labels such as `ORIGINAL REPORTED` and `SYNTHETIC VIOLATION` are also removed from the model input to prevent answer leakage.
 
-## Recommended Task
-
-Provide `input` to the model and predict the information in `label`:
+Each pair produces two examples:
 
 ```text
-original statement + synthetic statement
-    -> rule ID + violation + affected lines + expected effect
+original statement  -> NO_VIOLATION
+synthetic statement -> VIOLATION
 ```
 
-The fields inside `label` must not be included in the model input during evaluation.
+For an original example, `rule_id`, `violation`, `synthetic_transformation`, and `expected_effect` are `null`, and `affected_line_items` is empty.
+
+## Recommended Tasks
+
+### 1. Binary Violation Detection
+
+```text
+input -> label.classification
+```
+
+This task uses all 10,200 examples and has an exactly balanced label distribution.
+
+### 2. Rule Identification
+
+Using only examples for which `label.classification == "VIOLATION"`:
+
+```text
+input -> label.rule_id
+```
+
+### 3. Violation Identification
+
+Using only violation examples:
+
+```text
+input -> label.violation
+```
+
+### 4. Joint Diagnosis
+
+Using only violation examples, predict the rule ID, violation, affected lines, and expected effect.
+
+The fields inside `label` must never be included in the model input during evaluation.
 
 ## Quick Start
 
@@ -125,7 +162,8 @@ python build_simplified_dataset.py \
 
 - Split by `metadata.ticker` to test generalization to unseen companies.
 - Split by `label.rule_id` to test generalization to unseen violation types.
-- Keep each original–synthetic pair intact.
+- Keep both examples sharing the same `metadata.pair_id` in the same split.
+- Prefer company-level splitting because the same original company statement may be reused across multiple rule pairs.
 - Report results by rule and statement type in addition to overall performance.
 - Use the full dataset only when provenance, detailed line changes, or quality-control metadata is required.
 
@@ -133,7 +171,7 @@ python build_simplified_dataset.py \
 
 The full archive preserves company and filing metadata, original and synthetic statements, detailed `line_changes`, `ground_truth`, source information, and `quality_control`. It is substantially larger and contains many fields intended for dataset maintenance rather than ordinary modeling.
 
-All 5,100 full records are labeled `VIOLATION` because each record represents an original–synthetic comparison. The original statement should not be treated as an independently verified universal `NO_VIOLATION` filing; it is the unchanged baseline for the particular synthetic transformation.
+The full dataset contains 5,100 paired records. The simplified release expands each pair into one original `NO_VIOLATION` example and one synthetic `VIOLATION` example. Here, `NO_VIOLATION` means that the original statement does not contain the intentionally introduced violation represented by its paired synthetic case; it is not a universal audit opinion that the filing contains no issue of any kind.
 
 ## Limitations
 

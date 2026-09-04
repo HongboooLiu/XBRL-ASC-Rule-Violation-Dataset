@@ -48,9 +48,10 @@ def build_prompt(record: dict) -> str:
     model_input = json.dumps(record["input"], ensure_ascii=False, indent=2)
     return f"""You are a financial accounting analyst.
 
-Compare the original and synthetic financial statements. Identify the rule that
-is violated, the violation itself, the affected line item(s), and the expected
-financial-statement effect.
+Review the financial statement and determine whether it contains an accounting,
+classification, presentation, or reconciliation violation. Return
+VIOLATION or NO_VIOLATION. If it contains a violation, also identify the rule,
+the affected line item(s), and the expected financial-statement effect.
 
 Input:
 {model_input}
@@ -79,7 +80,10 @@ def main() -> None:
     print(f"Sample index: {args.sample_index}")
     print(f"ID: {record['id']}")
     print(f"Ticker: {record['metadata'].get('ticker')}")
+    print(f"Pair ID: {record['metadata'].get('pair_id')}")
+    print(f"Variant: {record['metadata'].get('variant')}")
     print(f"Statement type: {record['metadata'].get('statement_type')}")
+    print(f"Classification: {record['label'].get('classification')}")
     print(f"Rule: {record['label'].get('rule_id')}")
     print(f"Violation: {record['label'].get('violation')}")
     print(
@@ -87,10 +91,8 @@ def main() -> None:
         record["label"].get("affected_line_items", []),
     )
 
-    original_rows = record["input"]["original_statement"].get("rows", [])
-    synthetic_rows = record["input"]["synthetic_statement"].get("rows", [])
-    print(f"Original rows: {len(original_rows):,}")
-    print(f"Synthetic rows: {len(synthetic_rows):,}")
+    statement_rows = record["input"].get("rows", [])
+    print(f"Statement rows: {len(statement_rows):,}")
 
     if args.show_prompt:
         print("\nModel Prompt")
