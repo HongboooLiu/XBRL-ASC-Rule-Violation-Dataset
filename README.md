@@ -26,7 +26,8 @@ Together, the two components support evaluation under both naturally occurring r
 └── synthetic-auditing-dataset/
     ├── README.md
     ├── example_usage.py
-    └── final_financial_statement_cases_102_companies.json
+    ├── synthetic_financial_statement_cases_simplified.jsonl.zip
+    └── final_financial_statement_cases_102_companies.json.zip
 ```
 
 ## Dataset Components
@@ -34,7 +35,7 @@ Together, the two components support evaluation under both naturally occurring r
 | Component | Source | Size | Primary purpose |
 |---|---|---:|---|
 | `Real-World-Auditing-Data/` | SEC comment letters and referenced SEC filings | 1,092 samples | Binary table-level ASC violation detection |
-| `synthetic-auditing-dataset/` | Controlled transformations of public financial statements | 5,100 original–synthetic pairs | Rule-based violation analysis, localization, and explanation |
+| `synthetic-auditing-dataset/` | Controlled transformations of public financial statements | 10,200 balanced examples derived from 5,100 pairs | Violation detection, rule identification, localization, and explanation |
 | `final_primary_financial_statement_rules.xlsx` | Curated primary-statement rule set | 50 rules | Rule definitions and synthetic-data construction guidance |
 
 Each dataset folder contains its own README and minimal usage script. Refer to those files for the detailed schema, task construction, and limitations of each component.
@@ -72,30 +73,39 @@ For additional details, see [`Real-World-Auditing-Data/README.md`](Real-World-Au
 
 ## Synthetic Auditing Dataset
 
-The synthetic dataset contains 5,100 records covering:
+The synthetic dataset is constructed from 5,100 original–synthetic statement pairs covering:
 
 - 102 companies;
 - 50 synthetic rules;
 - 11 economic sectors; and
 - 50 original–synthetic statement pairs per company.
 
-Each record includes an original statement, a modified statement containing an intentional violation, transformation evidence, and ground-truth annotations.
-
-The recommended paired task is:
-
-```text
-original statement + synthetic statement
-    -> violated rule + affected lines + explanation
-```
-
-For binary detection, each pair may be expanded into:
+The recommended model-ready release expands every pair into two independent examples:
 
 ```text
 original statement  -> NO_VIOLATION
 synthetic statement -> VIOLATION
 ```
 
-This produces 10,200 derived statement examples. The original and synthetic versions from the same record must remain in the same data split.
+This produces an exactly balanced dataset of 10,200 examples: 5,100 `NO_VIOLATION` and 5,100 `VIOLATION` samples. Each model input contains only one financial statement; the model does not receive the original and synthetic statements together.
+
+The primary task is binary violation detection:
+
+```text
+financial statement -> VIOLATION / NO_VIOLATION
+```
+
+The 5,100 violation examples additionally support:
+
+```text
+financial statement -> rule ID
+financial statement -> violation description
+financial statement -> rule ID + affected lines + explanation
+```
+
+The simplified JSONL file contains four top-level fields: `id`, `input`, `label`, and `metadata`. The full JSON archive preserves the original paired representation, provenance, detailed transformation evidence, and quality-control metadata.
+
+Both examples originating from the same pair share a `metadata.pair_id` and must remain in the same data split.
 
 Run the example:
 
@@ -136,9 +146,10 @@ The repository supports several evaluation settings:
 ## Recommended Evaluation Protocol
 
 - Keep matched real-world samples together by splitting on `pair_id`.
-- Keep each synthetic original–modified pair in the same split.
+- Keep synthetic examples sharing the same `metadata.pair_id` in the same split.
 - Use company-level splits to test generalization to unseen issuers.
 - Use rule-level splits to test generalization to unseen violation types.
+- Prefer company-level splitting for the synthetic dataset because the same original company statement may be reused across multiple rule pairs.
 - Do not expose ground-truth explanations, line-change annotations, case names, or quality-control metadata as model input when those fields are evaluation targets.
 - Report category-level and statement-level results in addition to overall performance.
 - Evaluate real-world and synthetic results separately before reporting any combined aggregate.
