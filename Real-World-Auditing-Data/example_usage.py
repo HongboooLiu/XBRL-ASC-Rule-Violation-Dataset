@@ -15,7 +15,8 @@ from pathlib import Path
 import pandas as pd
 
 
-DEFAULT_CSV = "balanced_table_dataset_with_markdown.csv"
+DEFAULT_CSV = "balanced_table_dataset_simplified.csv"
+REQUIRED_COLUMNS = {"sample_id", "input", "label", "pair_id"}
 
 
 def build_prompt(sample):
@@ -24,14 +25,10 @@ def build_prompt(sample):
     return f"""
 You are a financial accounting compliance analyst.
 
-Review the financial statement below and determine whether it
+Review the input below and determine whether the financial statement
 violates the specified ASC rule.
 
-ASC Rule:
-{sample['target_asc_rule_ids']}
-
-Financial Statement:
-{sample['table_input']}
+{sample['input']}
 
 Return only:
 VIOLATION
@@ -65,7 +62,7 @@ def main():
     if not csv_path.exists():
         raise FileNotFoundError(
             f"Dataset not found: {csv_path}\n"
-            "Place balanced_table_dataset_with_markdown.csv in this folder "
+            "Place balanced_table_dataset_simplified.csv in this folder "
             "or provide its location with --csv."
         )
 
@@ -73,6 +70,12 @@ def main():
         csv_path,
         low_memory=False,
     )
+
+    missing_columns = REQUIRED_COLUMNS.difference(df.columns)
+    if missing_columns:
+        raise ValueError(
+            f"Dataset is missing required columns: {sorted(missing_columns)}"
+        )
 
     print("=" * 70)
     print("ASC Table Compliance Benchmark")
@@ -82,9 +85,8 @@ def main():
     print(f"Rows: {len(df):,}")
     print(f"Columns: {len(df.columns):,}")
 
-    if "label" in df.columns:
-        print("\nLabel distribution:")
-        print(df["label"].value_counts(dropna=False))
+    print("\nLabel distribution:")
+    print(df["label"].value_counts(dropna=False))
 
     if not 0 <= args.sample_index < len(df):
         raise IndexError(
@@ -97,28 +99,18 @@ def main():
     print("Example Sample")
     print("=" * 70)
 
-    for column in [
-        "sample_id",
-        "pair_id",
-        "label",
-        "Name",
-        "Ticker",
-        "Filing Type",
-        "target_asc_rule_ids",
-        "target_statement_types",
-    ]:
-        if column in sample.index:
-            print(f"{column}: {sample[column]}")
+    for column in ["sample_id", "pair_id", "label"]:
+        print(f"{column}: {sample[column]}")
 
-    print("\nFinancial Statement Markdown:")
+    print("\nModel Input:")
     print("-" * 70)
 
-    table_input = sample.get("table_input", "")
+    model_input = sample["input"]
 
-    if pd.isna(table_input) or not str(table_input).strip():
-        print("[table_input is empty]")
+    if pd.isna(model_input) or not str(model_input).strip():
+        print("[input is empty]")
     else:
-        print(table_input)
+        print(model_input)
 
     print("\n" + "=" * 70)
     print("Minimal LLM Prompt")
@@ -128,7 +120,7 @@ def main():
     print("\n" + "=" * 70)
     print("Ground Truth")
     print("=" * 70)
-    print(sample.get("label", "Label column not found"))
+    print(sample["label"])
 
 
 if __name__ == "__main__":
