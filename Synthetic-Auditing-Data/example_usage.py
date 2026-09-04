@@ -1,129 +1,102 @@
 #!/usr/bin/env python3
-"""Minimal usage example for the synthetic financial-statement dataset."""
+"""Minimal usage example for the simplified synthetic dataset."""
 
 import argparse
 import json
-from collections import Counter
+import zipfile
 from pathlib import Path
 
 
-DEFAULT_JSON = "final_financial_statement_cases_102_companies.json"
-REQUIRED_FIELDS = {
-    "record_id",
-    "ticker",
-    "rule_id",
-    "statement_type",
-    "case_name",
-    "label",
-    "original_statement",
-    "synthetic_statement",
-    "ground_truth",
-}
+DEFAULT_DATASET = "synthetic_financial_statement_cases_simplified.jsonl.zip"
+REQUIRED_FIELDS = {"id", "input", "label", "metadata"}
+
+
+def iter_jsonl(path: Path):
+    """Yield records from a .jsonl file or a .jsonl.zip archive."""
+    if path.suffix.lower() == ".zip":
+        with zipfile.ZipFile(path) as archive:
+            members = [
+                name
+                for name in archive.namelist()
+                if name.lower().endswith(".jsonl")
+                and not name.startswith("__MACOSX/")
+            ]
+            if len(members) != 1:
+                raise ValueError(f"Expected one JSONL file in {path}, found {members}")
+            with archive.open(members[0]) as file:
+                for line in file:
+                    if line.strip():
+                        yield json.loads(line)
+        return
+
+    with path.open(encoding="utf-8") as file:
+        for line in file:
+            if line.strip():
+                yield json.loads(line)
+
+
+def get_record(path: Path, sample_index: int) -> dict:
+    if sample_index < 0:
+        raise IndexError("--sample-index must be non-negative")
+    for index, record in enumerate(iter_jsonl(path)):
+        if index == sample_index:
+            return record
+    raise IndexError(f"--sample-index {sample_index} is outside the dataset")
 
 
 def build_prompt(record: dict) -> str:
-    """Build a paired prompt without exposing ground-truth annotations."""
-    original = json.dumps(
-        record["original_statement"], ensure_ascii=False, indent=2
-    )
-    synthetic = json.dumps(
-        record["synthetic_statement"], ensure_ascii=False, indent=2
-    )
-
+    model_input = json.dumps(record["input"], ensure_ascii=False, indent=2)
     return f"""You are a financial accounting analyst.
 
-Compare the original and synthetic financial statements below. Identify the
-accounting, classification, presentation, or reconciliation violation introduced
-in the synthetic statement. Name the affected line item(s) and briefly explain
-the expected financial-statement effect.
+Compare the original and synthetic financial statements. Identify the rule that
+is violated, the violation itself, the affected line item(s), and the expected
+financial-statement effect.
 
-Original Financial Statement:
-{original}
-
-Synthetic Financial Statement:
-{synthetic}
+Input:
+{model_input}
 """
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Inspect the synthetic financial-statement dataset."
-    )
-    parser.add_argument(
-        "--json",
-        default=DEFAULT_JSON,
-        help=f"Path to the dataset JSON. Default: {DEFAULT_JSON}",
-    )
-    parser.add_argument(
-        "--sample-index",
-        type=int,
-        default=0,
-        help="Zero-based record index to inspect. Default: 0",
-    )
-    parser.add_argument(
-        "--show-prompt",
-        action="store_true",
-        help="Print the full paired prompt, which may be long.",
-    )
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--dataset", type=Path, default=Path(DEFAULT_DATASET))
+    parser.add_argument("--sample-index", type=int, default=0)
+    parser.add_argument("--show-prompt", action="store_true")
     args = parser.parse_args()
 
-    dataset_path = Path(args.json)
-    if not dataset_path.exists():
+    if not args.dataset.exists():
         raise FileNotFoundError(
-            f"Dataset not found: {dataset_path}\n"
-            f"Place {DEFAULT_JSON} in this folder or use --json."
+            f"Dataset not found: {args.dataset}\n"
+            f"Place {DEFAULT_DATASET} in this folder or use --dataset."
         )
 
-    with dataset_path.open(encoding="utf-8") as file:
-        records = json.load(file)
-
-    if not isinstance(records, list) or not records:
-        raise ValueError("The dataset must be a non-empty JSON list.")
-
-    missing = REQUIRED_FIELDS.difference(records[0])
+    record = get_record(args.dataset, args.sample_index)
+    missing = REQUIRED_FIELDS.difference(record)
     if missing:
-        raise ValueError(f"First record is missing fields: {sorted(missing)}")
-
-    if not 0 <= args.sample_index < len(records):
-        raise IndexError(
-            f"--sample-index must be between 0 and {len(records) - 1}"
-        )
+        raise ValueError(f"Record is missing fields: {sorted(missing)}")
 
     print("Synthetic Financial Statement Violation Dataset")
-    print(f"Records: {len(records):,}")
-    print(f"Companies: {len({record['ticker'] for record in records}):,}")
-    print(f"Rules: {len({record['rule_id'] for record in records}):,}")
-    print(f"Labels: {dict(Counter(record['label'] for record in records))}")
+    print(f"Sample index: {args.sample_index}")
+    print(f"ID: {record['id']}")
+    print(f"Ticker: {record['metadata'].get('ticker')}")
+    print(f"Statement type: {record['metadata'].get('statement_type')}")
+    print(f"Rule: {record['label'].get('rule_id')}")
+    print(f"Violation: {record['label'].get('violation')}")
+    print(
+        "Affected line items:",
+        record["label"].get("affected_line_items", []),
+    )
 
-    sample = records[args.sample_index]
-    print("\nExample Record")
-    for field in (
-        "record_id",
-        "company",
-        "ticker",
-        "fiscal_year",
-        "rule_id",
-        "statement_type",
-        "case_name",
-        "label",
-    ):
-        print(f"{field}: {sample.get(field)}")
-
-    original_rows = sample["original_statement"].get("rows", [])
-    synthetic_rows = sample["synthetic_statement"].get("rows", [])
-    print(f"original rows: {len(original_rows):,}")
-    print(f"synthetic rows: {len(synthetic_rows):,}")
-    print(f"documented line changes: {len(sample.get('line_changes', [])):,}")
-
-    print("\nGround Truth")
-    for field, value in sample["ground_truth"].items():
-        print(f"{field}: {value}")
+    original_rows = record["input"]["original_statement"].get("rows", [])
+    synthetic_rows = record["input"]["synthetic_statement"].get("rows", [])
+    print(f"Original rows: {len(original_rows):,}")
+    print(f"Synthetic rows: {len(synthetic_rows):,}")
 
     if args.show_prompt:
-        print("\nPaired Model Prompt")
-        print(build_prompt(sample))
+        print("\nModel Prompt")
+        print(build_prompt(record))
     else:
-        print("\nUse --show-prompt to print the full paired model prompt.")
+        print("\nUse --show-prompt to print the full model input.")
 
 
 if __name__ == "__main__":
