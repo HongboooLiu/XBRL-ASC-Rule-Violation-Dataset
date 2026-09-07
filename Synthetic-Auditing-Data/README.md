@@ -24,10 +24,15 @@ Each synthetic statement contains one intentionally introduced accounting, class
 |---|---|
 | `synthetic_financial_statement_cases_simplified.jsonl.zip` | Recommended model-ready dataset |
 | `final_financial_statement_cases_102_companies.json.zip` | Full dataset with provenance and quality-control fields |
+| `final_primary_financial_statement_rules.xlsx` | Definitions and construction guidance for the synthetic rule set |
 | `example_usage.py` | Minimal loading and prompt example |
 | `build_simplified_dataset.py` | Rebuilds the simplified release from the full dataset |
 
 The simplified file is recommended for most users. The full file is intended for dataset auditing, provenance inspection, and detailed transformation analysis.
+
+### Rule File
+
+`final_primary_financial_statement_rules.xlsx` documents the curated primary-financial-statement rules used to support synthetic case construction. The workbook provides rule identifiers, categories, summaries, ASC references, and synthetic-data use cases, together with review notes and records of rule changes or exclusions.
 
 ## Simplified Format
 

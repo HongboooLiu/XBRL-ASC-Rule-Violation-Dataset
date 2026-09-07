@@ -18,14 +18,14 @@ Together, the two components support evaluation under both naturally occurring r
 ```text
 .
 ├── README.md
-├── final_primary_financial_statement_rules.xlsx
 ├── Real-World-Auditing-Data/
 │   ├── README.md
 │   ├── example_usage.py
 │   └── balanced_table_dataset_simplified.csv
-└── synthetic-auditing-dataset/
+└── Synthetic-Auditing-Data/
     ├── README.md
     ├── example_usage.py
+    ├── final_primary_financial_statement_rules.xlsx
     ├── synthetic_financial_statement_cases_simplified.jsonl.zip
     └── final_financial_statement_cases_102_companies.json.zip
 ```
@@ -35,8 +35,7 @@ Together, the two components support evaluation under both naturally occurring r
 | Component | Source | Size | Primary purpose |
 |---|---|---:|---|
 | `Real-World-Auditing-Data/` | SEC comment letters and referenced SEC filings | 1,092 samples | Binary table-level ASC violation detection |
-| `synthetic-auditing-dataset/` | Controlled transformations of public financial statements | 10,200 balanced examples derived from 5,100 pairs | Violation detection, rule identification, localization, and explanation |
-| `final_primary_financial_statement_rules.xlsx` | Curated primary-statement rule set | 50 rules | Rule definitions and synthetic-data construction guidance |
+| `Synthetic-Auditing-Data/` | Controlled transformations of public financial statements and the corresponding rule set | 10,200 balanced examples derived from 5,100 pairs | Violation detection, rule identification, localization, and explanation |
 
 Each dataset folder contains its own README and minimal usage script. Refer to those files for the detailed schema, task construction, and limitations of each component.
 
@@ -110,17 +109,17 @@ Both examples originating from the same pair share a `metadata.pair_id` and must
 Run the example:
 
 ```bash
-cd synthetic-auditing-dataset
+cd Synthetic-Auditing-Data
 python example_usage.py
 ```
 
-For additional details, see [`synthetic-auditing-dataset/README.md`](synthetic-auditing-dataset/README.md).
+For additional details, see [`Synthetic-Auditing-Data/README.md`](Synthetic-Auditing-Data/README.md).
 
 ## Supporting Rule File
 
-### `final_primary_financial_statement_rules.xlsx`
+### `Synthetic-Auditing-Data/final_primary_financial_statement_rules.xlsx`
 
-This workbook documents 50 curated rules intended to be identifiable from primary financial statements. It contains:
+This workbook is stored with the synthetic dataset and documents 50 curated rules intended to be identifiable from primary financial statements. It contains:
 
 - `Final Rules`: rule identifiers, categories, summaries, ASC references, and synthetic use cases;
 - `Review Summary`: review-level statistics and assessment notes; and
