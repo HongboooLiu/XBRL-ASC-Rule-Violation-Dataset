@@ -83,7 +83,6 @@ Financial statement tables are extracted from SEC filings and converted to Markd
 - **524** flattened table–rule samples
 - **262** violation samples and **262** non-violation samples
 - **61** unique ASC rules across the full benchmark
-- **39** unique ASC rules represented among violation cases
 - Financial-statement years primarily spanning **2007–2026**
 
 ### Distribution by Financial-Statement Year
@@ -94,7 +93,7 @@ The cases span multiple reporting periods, with the largest concentrations in 20
 
 ### Most Frequently Violated ASC Rules
 
-The violation subset covers 39 unique ASC rules. The most frequent rules are ASC 260-10-45-5, ASC 230-10-45-28, ASC 810-10-50-1A, and ASC 260-10-45-2, reflecting recurring presentation and classification issues involving earnings per share, cash flows, and noncontrolling interests.
+The dataset contains 61 unique ASC rules. The most frequent rules are ASC 260-10-45-5, ASC 230-10-45-28, ASC 810-10-50-1A, and ASC 260-10-45-2, reflecting recurring presentation and classification issues involving earnings per share, cash flows, and noncontrolling interests.
 
 ![Top 20 ASC rules in violation cases](top_violated_rules.png)
 
